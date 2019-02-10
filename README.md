@@ -14,7 +14,7 @@ Will return a JSON file structured as so:
     "Total": <total>
 }
 ```
-All units are kBtu, although the OSISoft dataset supports additional units
+All units are kBtu, although the OSISoft dataset supports additional units.
 
 ### POST
 ```hostname:3000/sms/```

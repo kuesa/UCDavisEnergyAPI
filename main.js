@@ -4,8 +4,18 @@ const MessagingResponse = require('twilio').twiml.MessagingResponse;
 const app = express();
 const port = 3000;
 
+import {REGION, ENDPOINT, TABLE_NAME} from 'vars';
+
 var bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({extended: false}));
+
+var AWS = require('aws-sdk');
+AWS.config.update({
+    region: REGION,
+    endpoint: ENDPOINT
+});
+
+db = new AWS.DynamoDB();
 
 app.get('/', (req,res) => res.send('Hackerino'));
 
@@ -31,18 +41,34 @@ app.get('/buildings/:bldgName/', function (req, res){
 });
 
 app.post('/sms/', function(req, res){
-    console.log(req.body.Body);
-    let msg = toTitleCase(req.body.Body);
-    const twiml = new MessagingResponse();
-    let data = getUsage(msg, '|Total Demand');
-    data.then(function(result){
-        if(result != undefined){
-            twiml.message(msg + ': ' + result + ' kBtu');
-        } else {
-            twiml.message(msg + ': Invalid Building');
+    let params = {
+        ExpressionAttributeValues: {
+            ':v1':{
+                S: req.body.From
+            }
+        },
+        KeyConditionExpression: 'phone_number = :v1',
+        IndexName:'phone_numbers',
+        TableName: TABLE_NAME
+    }
+
+    db.query(params, function(err, qData) {
+        if (err) {
+            console.log(err, err.stack);
+        } else if(qData.Count > 0){
+            let msg = toTitleCase(req.body.Body);
+            const twiml = new MessagingResponse();
+            let data = getUsage(msg, '|Total Demand');
+            data.then(function(result){
+                if(result != undefined){
+                    twiml.message(msg + ': ' + result + ' kBtu');
+                } else {
+                    twiml.message(msg + ': Invalid Building');
+                }
+                res.writeHead(200, {'Content-Type': 'text/xml'});
+                res.end(twiml.toString());
+            });
         }
-        res.writeHead(200, {'Content-Type': 'text/xml'});
-        res.end(twiml.toString());
     });
 });
 
